@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"holodeck/reader"
 	"holodeck/types"
 )
 
@@ -185,13 +184,6 @@ func (cl *ConfigLoader) validateCSV() {
 	if cl.Config.CSV.FilePath == "" {
 		cl.Errors = append(cl.Errors,
 			types.NewConfigError("csv.filepath", "CSV filepath cannot be empty"))
-		return
-	}
-
-	// Check if file exists
-	if _, err := os.Stat(cl.Config.CSV.FilePath); os.IsNotExist(err) {
-		cl.Errors = append(cl.Errors,
-			types.NewConfigError("csv.filepath", fmt.Sprintf("CSV file not found: %s", cl.Config.CSV.FilePath)))
 	}
 }
 
@@ -667,22 +659,17 @@ func (c *Config) DebugString() string {
 // NewCSVReader creates a CSV tick reader from config
 func (c *Config) NewCSVReader() (TickReader, error) {
 	if c.CSV.FilePath == "" {
-		return nil, types.NewConfigError("csv.filepath", "CSV file path not configured")
+		return nil, fmt.Errorf("CSV file path not configured")
 	}
 
 	// Check if file exists
-	if _, err := os.Stat(c.CSV.FilePath); os.IsNotExist(err) {
-		return nil, types.NewConfigError("csv.filepath", fmt.Sprintf("CSV file not found: %s", c.CSV.FilePath))
+	if _, err := os.Stat(c.CSV.FilePath); err != nil {
+		return nil, fmt.Errorf("CSV file not found: %s (%w)", c.CSV.FilePath, err)
 	}
 
-	// Create CSV reader with default configuration
-	// The reader will use RFC3339Nano timestamp format and skip the first line (header)
-	csvReader, err := reader.NewCSVTickReader(c.CSV.FilePath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create CSV reader: %w", err)
-	}
-
-	return csvReader, nil
+	// TODO: Uncomment when reader package is available
+	// return reader.NewCSVTickReader(c.CSV.FilePath)
+	return nil, fmt.Errorf("reader.NewCSVTickReader not yet available")
 }
 
 // NewExecutor creates an order executor from config

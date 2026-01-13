@@ -8,8 +8,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"holodeck/executor"
-	"holodeck/logger"
 	"holodeck/reader"
 	"holodeck/types"
 )
@@ -688,27 +686,33 @@ func (c *Config) NewCSVReader() (TickReader, error) {
 }
 
 // NewExecutor creates an order executor from config
-// NewExecutor creates an order executor from config
-func (c *Config) NewExecutor() (*executor.OrderExecutor, error) {
-	return executor.NewOrderExecutor(executor.ExecutorConfig{
-		CommissionEnabled:   c.Execution.Commission,
-		SlippageEnabled:     c.Execution.Slippage,
-		LatencyEnabled:      c.Execution.Latency,
-		PartialFillsEnabled: c.Execution.PartialFills,
-		MaxOrderSize:        c.Account.MaxPositionSize,
-		MaxPositionSize:     c.Account.MaxPositionSize,
-		MinimumOrderSize:    c.Instrument.MinimumLotSize,
-	}), nil
+func (c *Config) NewExecutor() (OrderExecutor, error) {
+	// TODO: Uncomment when executor package is available
+	// return executor.NewOrderExecutor(c.Execution)
+	return nil, fmt.Errorf("executor.NewOrderExecutor not yet available")
 }
 
 // NewLogger creates a logger from config
-func (c *Config) NewLogger() (logger.Logger, error) {
+func (c *Config) NewLogger() (Logger, error) {
 	if !c.Logging.Verbose {
 		return nil, nil
 	}
 
-	// Create console logger (simple stdout logging)
-	return logger.NewConsoleLogger(c.Logging), nil
+	if c.Logging.LogFile != "" {
+		// Create directory for log file
+		dir := filepath.Dir(c.Logging.LogFile)
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return nil, fmt.Errorf("failed to create log directory: %w", err)
+		}
+
+		// TODO: Uncomment when logger package is available
+		// return logger.NewFileLogger(c.Logging.LogFile, c.Logging)
+		return nil, fmt.Errorf("logger.NewFileLogger not yet available")
+	}
+
+	// TODO: Uncomment when logger package is available
+	// return logger.NewConsoleLogger(c.Logging)
+	return nil, fmt.Errorf("logger.NewConsoleLogger not yet available")
 }
 
 // NewInstrument creates an instrument from config
@@ -752,21 +756,17 @@ func (c *Config) NewHolodeck() (*Holodeck, error) {
 		return nil, fmt.Errorf("failed to create instrument: %w", err)
 	}
 
-	// Step 3: Create executor (REQUIRED - market engine)
-	exec, err := c.NewExecutor()
-	if err != nil {
-		return nil, fmt.Errorf("failed to create executor: %w", err)
-	}
-
-	// Step 4: Create logger
-	log, err := c.NewLogger()
+	// Step 3: Create logger
+	logger, err := c.NewLogger()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create logger: %w", err)
 	}
 
+	// NOTE: Executor is NOT created here - it will be created lazily when needed for trading
+	// This keeps initialization lightweight and only creates trading infrastructure when actually trading
+
 	// Step 5: Create HolodeckConfig
 	hConfig := &HolodeckConfig{
-		Config:     c, // Add the base config reference
 		SessionID:  fmt.Sprintf("session_%d", time.Now().Unix()),
 		StartTime:  time.Now(),
 		IsRunning:  false,
@@ -801,11 +801,10 @@ func (c *Config) NewHolodeck() (*Holodeck, error) {
 		return nil, fmt.Errorf("failed to create Holodeck: %w", err)
 	}
 
-	// Step 7: Wire ALL subsystems (reader, executor, logger)
+	// Step 7: Wire subsystems (reader and logger only - executor created on demand)
 	holodeck = holodeck.
 		WithReader(reader).
-		WithExecutor(exec).
-		WithLogger(log)
+		WithLogger(logger)
 
 	// Step 8: Set speed
 	if c.Speed.Multiplier > 0 {

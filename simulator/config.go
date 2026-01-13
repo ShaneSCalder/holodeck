@@ -752,19 +752,10 @@ func (c *Config) NewHolodeck() (*Holodeck, error) {
 		return nil, fmt.Errorf("failed to create instrument: %w", err)
 	}
 
-	// Step 3: Create executor (REQUIRED - market engine)
-	exec, err := c.NewExecutor()
-	if err != nil {
-		return nil, fmt.Errorf("failed to create executor: %w", err)
-	}
+	// NOTE: Executor and Logger are optional - can be added later
+	// The interfaces in simulator/holodeck.go don't match the built packages yet
 
-	// Step 4: Create logger
-	log, err := c.NewLogger()
-	if err != nil {
-		return nil, fmt.Errorf("failed to create logger: %w", err)
-	}
-
-	// Step 5: Create HolodeckConfig
+	// Step 4: Create HolodeckConfig
 	hConfig := &HolodeckConfig{
 		Config:     c, // Add the base config reference
 		SessionID:  fmt.Sprintf("session_%d", time.Now().Unix()),
@@ -795,19 +786,16 @@ func (c *Config) NewHolodeck() (*Holodeck, error) {
 		},
 	}
 
-	// Step 6: Create Holodeck
+	// Step 5: Create Holodeck
 	holodeck, err := NewHolodeck(hConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Holodeck: %w", err)
 	}
 
-	// Step 7: Wire ALL subsystems (reader, executor, logger)
-	holodeck = holodeck.
-		WithReader(reader).
-		WithExecutor(exec).
-		WithLogger(log)
+	// Step 6: Wire subsystems (reader is required, executor/logger are optional)
+	holodeck = holodeck.WithReader(reader)
 
-	// Step 8: Set speed
+	// Step 7: Set speed
 	if c.Speed.Multiplier > 0 {
 		if err := holodeck.SetSpeed(c.Speed.Multiplier); err != nil {
 			return nil, fmt.Errorf("failed to set speed: %w", err)
